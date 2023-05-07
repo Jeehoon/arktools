@@ -77,6 +77,8 @@ func initConfig() {
 
 	if viper.GetBool("verbose") {
 		log.Verbose = true
+	} else {
+		log.Verbose = false
 	}
 
 }

@@ -15,7 +15,9 @@ func init() {
 var Verbose bool
 
 func Debugf(f string, args ...any) {
-	log.Debug().Msgf(f, args...)
+	if Verbose {
+		log.Debug().Msgf(f, args...)
+	}
 }
 func Infof(f string, args ...any) {
 	log.Info().Msgf(f, args...)

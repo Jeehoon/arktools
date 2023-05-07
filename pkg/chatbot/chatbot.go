@@ -30,7 +30,11 @@ type ChatBot struct {
 	dg     *discordgo.Session
 }
 
-func NewChatBot(discordApiToken, webdisAddr, clusterId, channelId, format string) *ChatBot {
+func New(discordApiToken, webdisAddr, clusterId, channelId, format string) *ChatBot {
+	if format == "" {
+		format = "```md\n[%v][%v][%v]: %v\n```"
+	}
+
 	cb := new(ChatBot)
 	cb.apiToken = discordApiToken
 	cb.webdisAddr = webdisAddr
@@ -88,6 +92,10 @@ func (cb *ChatBot) MessageHandler(s *discordgo.Session, m *discordgo.MessageCrea
 		return
 	}
 
+	if m.ChannelID != cb.channelId {
+		return
+	}
+
 	//content := m.Content
 	var nick = m.Member.Nick
 	var tribe string
@@ -109,8 +117,8 @@ func (cb *ChatBot) MessageHandler(s *discordgo.Session, m *discordgo.MessageCrea
 
 func (cb *ChatBot) ForwardDiscord(msg *RedisMessage) {
 	cb.dg.ChannelMessageSend(
-		"1104414449986715678",
-		fmt.Sprintf("```md\n[%v][%v][%v]: %v\n```", msg.ServerName, msg.TribeName, msg.SurvivorName, msg.Message),
+		cb.channelId,
+		fmt.Sprintf(cb.format, msg.ServerName, msg.TribeName, msg.SurvivorName, msg.Message),
 	)
 }
 
@@ -271,6 +279,10 @@ func (cb *ChatBot) PollWebdis(ctx context.Context) (err error) {
 		for i := len(msgs) - 1; i >= 0; i-- {
 			msg := msgs[i]
 			if last >= msg.Epoch {
+				continue
+			}
+
+			if msg.ServerName == "Discord" {
 				continue
 			}
 
