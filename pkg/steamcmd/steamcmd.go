@@ -22,8 +22,8 @@ import (
 	"unicode"
 
 	"github.com/creack/pty"
+	"github.com/jeehoon/arktools/pkg/log"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -148,11 +148,18 @@ func (steamcmd *SteamCmd) Run(ctx context.Context, fn func(out string) (cmd stri
 }
 
 func (steamcmd *SteamCmd) getAppInfo(ctx context.Context, appId int) (info string, err error) {
+	bLogon := false
 	bAppInfoUpdate := false
 	bAppInfoPrint := false
 
 	if err := steamcmd.Run(ctx, func(out string) (cmd string) {
+		if idx := strings.Index(out, "Waiting for user info...OK"); idx != -1 {
+			bLogon = true
+		}
+
 		switch {
+		case !bLogon:
+			return "login anonymous"
 		case !bAppInfoUpdate:
 			bAppInfoUpdate = true
 			return "app_info_update 1"
@@ -219,7 +226,7 @@ func (steamcmd *SteamCmd) UpdateServer(ctx context.Context, appId int) (err erro
 	return nil
 }
 
-func (steamcmd *SteamCmd) HasUpdate(ctx context.Context, appId int) (bool, error) {
+func (steamcmd *SteamCmd) HasUpdate(ctx context.Context, appId int) (hasUpdate bool, err error) {
 	// read steam app info
 	info, err := steamcmd.getAppInfo(ctx, appId)
 	if err != nil {
@@ -241,6 +248,10 @@ func (steamcmd *SteamCmd) HasUpdate(ctx context.Context, appId int) (bool, error
 	localAcf := filepath.Join(steamcmd.installDir, "steamapps", fmt.Sprintf("appmanifest_%v.acf", appId))
 	b, err := ioutil.ReadFile(localAcf)
 	if err != nil {
+		if os.IsNotExist(err) {
+			steamcmd.SendUserf("ARK Server is not installed")
+			return true, nil
+		}
 		return false, errors.Wrap(err, "ioutil.ReadFile(appmanifest)")
 	}
 
@@ -256,7 +267,6 @@ func (steamcmd *SteamCmd) HasUpdate(ctx context.Context, appId int) (bool, error
 	log.Debugf("Local Depots: %q", localInfo)
 
 	// compare
-	hasUpdate := false
 	for k, _ := range localInfo {
 		if steamInfo[k] != localInfo[k] {
 			hasUpdate = true

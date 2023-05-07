@@ -9,10 +9,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sirupsen/logrus"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/jeehoon/arktools/pkg/log"
 )
 
 var cfgFile string
@@ -76,9 +76,9 @@ func initConfig() {
 	}
 
 	if viper.GetBool("verbose") {
-		log.Infof("log level debug")
-		log.SetLevel(logrus.DebugLevel)
+		log.Verbose = true
 	}
+
 }
 
 var Output io.Writer
