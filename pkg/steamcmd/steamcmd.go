@@ -222,7 +222,7 @@ func (steamcmd *SteamCmd) UpdateServer(ctx context.Context, appId int) (err erro
 		return errors.Wrap(err, "steamcmd.Run")
 	}
 
-	steamcmd.SendUserf("ARK Server was updated. (restart required)")
+	steamcmd.SendUserf("+ ARK Server was updated. (restart required)")
 	return nil
 }
 
@@ -249,7 +249,7 @@ func (steamcmd *SteamCmd) HasUpdate(ctx context.Context, appId int) (hasUpdate b
 	b, err := ioutil.ReadFile(localAcf)
 	if err != nil {
 		if os.IsNotExist(err) {
-			steamcmd.SendUserf("ARK Server is not installed")
+			steamcmd.SendUserf("+ ARK Server is not installed")
 			return true, nil
 		}
 		return false, errors.Wrap(err, "ioutil.ReadFile(appmanifest)")
@@ -275,9 +275,9 @@ func (steamcmd *SteamCmd) HasUpdate(ctx context.Context, appId int) (hasUpdate b
 	}
 
 	if hasUpdate {
-		steamcmd.SendUserf("ARK Server update required")
+		steamcmd.SendUserf("+ ARK Server update required")
 	} else {
-		steamcmd.SendUserf("ARK Server is up-to-date")
+		steamcmd.SendUserf(": ARK Server is up-to-date")
 	}
 
 	return hasUpdate, nil
@@ -304,11 +304,11 @@ func (steamcmd *SteamCmd) UpdateRequiredMods(ctx context.Context, appId int, mod
 
 		if steamUpdated == localUpdated {
 			log.Infof("MOD[%v](%v) is up-to-date.", modId, title)
-			steamcmd.SendUserf("ARK MOD[%v](%v) is up-to-date", modId, title)
+			steamcmd.SendUserf(": ARK MOD[%v](%v) is up-to-date", modId, title)
 		} else {
 			required = append(required, modId)
 			log.Infof("MOD[%v](%v) is update required.", modId, title)
-			steamcmd.SendUserf("ARK MOD[%v](%v) update required", modId, title)
+			steamcmd.SendUserf("+ ARK MOD[%v](%v) update required", modId, title)
 		}
 	}
 
@@ -375,7 +375,7 @@ func (steamcmd *SteamCmd) UpdateMods(ctx context.Context, appId int, modIds []in
 		if err := steamcmd.installMod(ctx, appId, modId); err != nil {
 			return errors.Wrapf(err, "steamcmd.installMod(%v)", modId)
 		}
-		steamcmd.SendUserf("ARK MOD[%v](%v) was updated (restart required)", modId, modTitle)
+		steamcmd.SendUserf("+ ARK MOD[%v](%v) was updated (restart required)", modId, modTitle)
 	}
 
 	return nil
