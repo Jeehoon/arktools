@@ -271,7 +271,7 @@ func (cb *ChatBot) PollWebdis(ctx context.Context) (err error) {
 			return errors.Wrap(err, "cb.LRange")
 		}
 
-		if last == 0 {
+		if last == 0 && len(msgs) > 0 {
 			last = msgs[0].Epoch
 			continue
 		}
