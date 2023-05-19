@@ -70,7 +70,8 @@ func (cb *ChatBot) Serve(ctx context.Context) (err error) {
 		log.Infof("Bot is now running. Press CTRL-C to exit.")
 		sc := make(chan os.Signal, 1)
 		signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-		<-sc
+		s := <-sc
+		log.Infof("got signal %v", s)
 		cb.dg.Close()
 	}()
 
@@ -78,13 +79,89 @@ func (cb *ChatBot) Serve(ctx context.Context) (err error) {
 	go func() {
 		defer wg.Done()
 		defer cancel()
-		if err := cb.PollWebdis(ctx); err != nil {
-			log.Errorf("cb.PollWebdis failure: %v", err)
+
+		for ctx.Err() == nil {
+			if err := cb.PollWebdis(ctx); err != nil {
+				log.Errorf("cb.PollWebdis failure: %v", err)
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer cancel()
+
+		ticker := time.NewTicker(time.Hour * 3)
+
+		for {
+			log.Infof("check delete message on %v", cb.channelId)
+
+			var msgids []string
+			pivot := time.Now().Add(-(time.Hour * 24))
+
+			for msg := range cb.getAllMessages(cb.channelId) {
+				if pivot.After(msg.Timestamp) {
+					log.Infof("delete message: %v %v", msg.Timestamp, msg.Content)
+					msgids = append(msgids, msg.ID)
+				}
+			}
+
+			for len(msgids) > 0 {
+				var ids []string
+				if len(msgids) > 100 {
+					ids = msgids[0:100]
+					msgids = msgids[100:]
+				} else {
+					ids = msgids
+					msgids = nil
+				}
+
+				if err := cb.dg.ChannelMessagesBulkDelete(cb.channelId, ids); err != nil {
+					log.Errorf("dg.ChannelMessagesBulkDelete failure: %v", err)
+				}
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
 		}
 	}()
 
 	wg.Wait()
-	return nil
+	return ctx.Err()
+}
+
+func (cb *ChatBot) getAllMessages(channelId string) <-chan *discordgo.Message {
+
+	ch := make(chan *discordgo.Message)
+	go func() {
+		defer close(ch)
+
+		var lastId string
+
+		for {
+			msgs, err := cb.dg.ChannelMessages(cb.channelId, 100, lastId, "", "")
+			if err != nil {
+				log.Errorf("dg.ChannelMessages failure: %v", err)
+				return
+			}
+
+			if len(msgs) == 0 {
+				return
+			}
+
+			for _, msg := range msgs {
+				ch <- msg
+			}
+			lastId = msgs[len(msgs)-1].ID
+		}
+
+	}()
+
+	return ch
 }
 
 func (cb *ChatBot) MessageHandler(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -218,7 +295,8 @@ func (cb *ChatBot) LRange(start, end int) (items []*RedisMessage, err error) {
 		r := strings.NewReader(item.(string))
 		var msg *RedisMessage
 		if err := json.NewDecoder(r).Decode(&msg); err != nil {
-			return nil, errors.Wrap(err, "json.Decode")
+			log.Errorf("json.Decode failure: %v", err)
+			continue
 		}
 		items = append(items, msg)
 	}

@@ -13,8 +13,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/text/encoding/unicode"
-	"golang.org/x/text/transform"
 )
 
 // rconCmd represents the rcon command
@@ -77,11 +75,6 @@ func rconTalk(conn net.Conn, reqType uint32, payload []byte) (resp []byte, err e
 
 	buff = buff[:len(buff)-2]
 	return buff, nil
-}
-
-func ToUtf16le(utf8 []byte) (utf16le []byte, err error) {
-	utf16le, _, err = transform.Bytes(unicode.UTF16(unicode.LittleEndian, unicode.IgnoreBOM).NewEncoder(), utf8)
-	return
 }
 
 func doRCON(ctx context.Context, args []string) (err error) {
